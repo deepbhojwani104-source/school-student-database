@@ -9,6 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <!-- SheetJS for Excel export -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -32,6 +34,16 @@
         <div class="stat-pill" id="total-count">
           <span class="stat-num" id="stat-total">0</span>
           <span class="stat-label">Students</span>
+        </div>
+        <div class="gdrive-group">
+          <button class="btn-gdrive" id="btn-gdrive-sync" onclick="handleDriveSync()">
+            <span class="gdrive-icon">☁️</span>
+            Sync to Drive
+          </button>
+          <button class="btn-gdrive-load" id="btn-gdrive-load" onclick="handleDriveLoad()">
+            <span class="gdrive-icon">📂</span>
+            Load from Drive
+          </button>
         </div>
         <button class="btn-export" id="btn-export" onclick="exportToExcel()">
           <span class="export-icon">📊</span>

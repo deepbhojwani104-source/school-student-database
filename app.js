@@ -21,6 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Set today's date as default admission date
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('admDate').value = today;
+
+  // Initialize Google Identity Services token client
+  setTimeout(initTokenClient, 1000);
 });
 
 // ──────────────────────────────────────────────
@@ -384,4 +387,190 @@ function formatDate(dateStr) {
   const d = new Date(dateStr);
   if (isNaN(d)) return dateStr;
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// ──────────────────────────────────────────────
+// Google Drive Integration
+// ──────────────────────────────────────────────
+const GDRIVE_CLIENT_ID = '25631955555-fkk8i144c7jlva12ohl9kt7eedlspuq8.apps.googleusercontent.com';
+const GDRIVE_SCOPES    = 'https://www.googleapis.com/auth/drive.file';
+
+let tokenClient = null;
+let accessToken = null;
+let pendingAction = null;
+
+function initTokenClient() {
+  if (typeof google === 'undefined' || !google.accounts) {
+    console.log('Google Identity Services script not ready yet, retrying...');
+    return;
+  }
+  try {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GDRIVE_CLIENT_ID,
+      scope: GDRIVE_SCOPES,
+      callback: async (response) => {
+        if (response.error !== undefined) {
+          showToast('❌ Auth error: ' + response.error, 'error');
+          return;
+        }
+        accessToken = response.access_token;
+        
+        // Execute pending action
+        if (pendingAction === 'save') {
+          showToast('📤 Syncing records to Google Drive...', 'info');
+          await saveToDrive();
+        } else if (pendingAction === 'load') {
+          showToast('📥 Loading records from Google Drive...', 'info');
+          await loadFromDrive();
+        }
+        pendingAction = null;
+      },
+    });
+    console.log('Google Token Client initialized successfully.');
+  } catch (err) {
+    console.error('Error initializing Google token client:', err);
+  }
+}
+
+function requestAuth(action) {
+  if (!tokenClient) {
+    initTokenClient();
+  }
+  if (!tokenClient) {
+    showToast('⚠️ Google Drive library still loading, please wait.', 'info');
+    return;
+  }
+  pendingAction = action;
+  
+  // If we already have a valid accessToken, just run the action directly
+  if (accessToken) {
+    if (action === 'save') saveToDrive();
+    if (action === 'load') loadFromDrive();
+    pendingAction = null;
+  } else {
+    // Open the Google Sign-In popup
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  }
+}
+
+function handleDriveSync() {
+  if (students.length === 0) {
+    showToast('⚠️ Nothing to sync! Add some students first.', 'info');
+    return;
+  }
+  requestAuth('save');
+}
+
+function handleDriveLoad() {
+  requestAuth('load');
+}
+
+async function findDriveFile() {
+  const searchUrl = "https://www.googleapis.com/drive/v3/files?q=name='EduBase_Students.json' and trashed=false";
+  try {
+    const res = await fetch(searchUrl, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    if (!res.ok) throw new Error('Search failed');
+    const data = await res.json();
+    return data.files && data.files.length > 0 ? data.files[0].id : null;
+  } catch (err) {
+    console.error('findDriveFile error:', err);
+    return null;
+  }
+}
+
+async function saveToDrive() {
+  try {
+    const fileId = await findDriveFile();
+    const fileContent = JSON.stringify(students, null, 2);
+
+    if (fileId) {
+      // Update existing file
+      const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`;
+      const res = await fetch(updateUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: fileContent
+      });
+      if (res.ok) {
+        showToast('✅ Synced successfully with Google Drive!', 'success');
+      } else {
+        throw new Error('Update failed');
+      }
+    } else {
+      // Create new file using multipart/related
+      const metadata = {
+        name: 'EduBase_Students.json',
+        mimeType: 'application/json'
+      };
+      
+      const boundary = 'edubase_multipart_boundary';
+      const delimiter = `\r\n--${boundary}\r\n`;
+      const close_delim = `\r\n--${boundary}--`;
+      
+      const multipartBody = 
+        delimiter +
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify(metadata) +
+        delimiter +
+        'Content-Type: application/json\r\n\r\n' +
+        fileContent +
+        close_delim;
+
+      const createUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+      const res = await fetch(createUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`
+        },
+        body: multipartBody
+      });
+      if (res.ok) {
+        showToast('✅ Saved to Google Drive root folder!', 'success');
+      } else {
+        throw new Error('Creation failed');
+      }
+    }
+  } catch (err) {
+    console.error('saveToDrive error:', err);
+    showToast('❌ Failed to sync to Google Drive.', 'error');
+  }
+}
+
+async function loadFromDrive() {
+  try {
+    const fileId = await findDriveFile();
+    if (!fileId) {
+      showToast('📂 "EduBase_Students.json" not found on your Google Drive!', 'info');
+      return;
+    }
+
+    const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+    const res = await fetch(downloadUrl, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        students = data;
+        saveToStorage();
+        renderTable(students);
+        updateStats();
+        showToast(`✅ Loaded ${students.length} students from Google Drive!`, 'success');
+      } else {
+        showToast('⚠️ Google Drive file format invalid.', 'error');
+      }
+    } else {
+      throw new Error('Download failed');
+    }
+  } catch (err) {
+    console.error('loadFromDrive error:', err);
+    showToast('❌ Failed to load from Google Drive.', 'error');
+  }
 }
