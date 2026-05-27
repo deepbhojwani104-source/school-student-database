@@ -1,0 +1,11 @@
+# Logs and temporary files
+*.log
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Excel exports (generated files, don't commit)
+*.xlsx

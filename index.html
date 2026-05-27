@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>School Student Database</title>
+  <meta name="description" content="A modern school student database system for managing student records with Excel export functionality." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Animated Background Orbs -->
+  <div class="bg-orb orb1"></div>
+  <div class="bg-orb orb2"></div>
+  <div class="bg-orb orb3"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🎓</span>
+        <div>
+          <h1 class="logo-title">EduBase</h1>
+          <p class="logo-sub">School Student Database</p>
+        </div>
+      </div>
+      <div class="header-stats">
+        <div class="stat-pill" id="total-count">
+          <span class="stat-num" id="stat-total">0</span>
+          <span class="stat-label">Students</span>
+        </div>
+        <button class="btn-export" id="btn-export" onclick="exportToExcel()">
+          <span class="export-icon">📊</span>
+          Export to Excel
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- Registration Form Card -->
+    <section class="card form-card" id="form-section">
+      <div class="card-header">
+        <div class="card-icon">✏️</div>
+        <div>
+          <h2 class="card-title">Student Registration</h2>
+          <p class="card-desc">Fill in the details to add a new student</p>
+        </div>
+      </div>
+
+      <form id="studentForm" onsubmit="addStudent(event)" novalidate>
+        <div class="form-grid">
+
+          <!-- Full Name -->
+          <div class="form-group">
+            <label class="form-label" for="fullName">Full Name <span class="req">*</span></label>
+            <input class="form-input" type="text" id="fullName" placeholder="e.g. Rahul Sharma" required />
+            <span class="err-msg" id="err-fullName"></span>
+          </div>
+
+          <!-- Roll Number -->
+          <div class="form-group">
+            <label class="form-label" for="rollNo">Roll Number <span class="req">*</span></label>
+            <input class="form-input" type="text" id="rollNo" placeholder="e.g. 2024001" required />
+            <span class="err-msg" id="err-rollNo"></span>
+          </div>
+
+          <!-- Class -->
+          <div class="form-group">
+            <label class="form-label" for="className">Class <span class="req">*</span></label>
+            <select class="form-input form-select" id="className" required>
+              <option value="">-- Select Class --</option>
+              <option>Class 1</option><option>Class 2</option><option>Class 3</option>
+              <option>Class 4</option><option>Class 5</option><option>Class 6</option>
+              <option>Class 7</option><option>Class 8</option><option>Class 9</option>
+              <option>Class 10</option><option>Class 11 (Science)</option>
+              <option>Class 11 (Commerce)</option><option>Class 11 (Arts)</option>
+              <option>Class 12 (Science)</option><option>Class 12 (Commerce)</option>
+              <option>Class 12 (Arts)</option>
+            </select>
+            <span class="err-msg" id="err-className"></span>
+          </div>
+
+          <!-- Section -->
+          <div class="form-group">
+            <label class="form-label" for="section">Section</label>
+            <select class="form-input form-select" id="section">
+              <option value="">-- Select Section --</option>
+              <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option>
+            </select>
+          </div>
+
+          <!-- Date of Birth -->
+          <div class="form-group">
+            <label class="form-label" for="dob">Date of Birth <span class="req">*</span></label>
+            <input class="form-input" type="date" id="dob" required />
+            <span class="err-msg" id="err-dob"></span>
+          </div>
+
+          <!-- Gender -->
+          <div class="form-group">
+            <label class="form-label" for="gender">Gender <span class="req">*</span></label>
+            <select class="form-input form-select" id="gender" required>
+              <option value="">-- Select Gender --</option>
+              <option>Male</option><option>Female</option><option>Other</option>
+            </select>
+            <span class="err-msg" id="err-gender"></span>
+          </div>
+
+          <!-- Father's Name -->
+          <div class="form-group">
+            <label class="form-label" for="fatherName">Father's Name <span class="req">*</span></label>
+            <input class="form-input" type="text" id="fatherName" placeholder="e.g. Rajesh Sharma" required />
+            <span class="err-msg" id="err-fatherName"></span>
+          </div>
+
+          <!-- Mother's Name -->
+          <div class="form-group">
+            <label class="form-label" for="motherName">Mother's Name</label>
+            <input class="form-input" type="text" id="motherName" placeholder="e.g. Sunita Sharma" />
+          </div>
+
+          <!-- Phone Number -->
+          <div class="form-group">
+            <label class="form-label" for="phone">Phone Number <span class="req">*</span></label>
+            <input class="form-input" type="tel" id="phone" placeholder="e.g. 9876543210" maxlength="10" required />
+            <span class="err-msg" id="err-phone"></span>
+          </div>
+
+          <!-- Email -->
+          <div class="form-group">
+            <label class="form-label" for="email">Email Address</label>
+            <input class="form-input" type="email" id="email" placeholder="e.g. student@email.com" />
+            <span class="err-msg" id="err-email"></span>
+          </div>
+
+          <!-- Admission Date -->
+          <div class="form-group">
+            <label class="form-label" for="admDate">Admission Date</label>
+            <input class="form-input" type="date" id="admDate" />
+          </div>
+
+          <!-- Blood Group -->
+          <div class="form-group">
+            <label class="form-label" for="bloodGroup">Blood Group</label>
+            <select class="form-input form-select" id="bloodGroup">
+              <option value="">-- Select --</option>
+              <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+              <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+            </select>
+          </div>
+
+          <!-- Address (full width) -->
+          <div class="form-group full-width">
+            <label class="form-label" for="address">Address</label>
+            <textarea class="form-input form-textarea" id="address" rows="2" placeholder="House No., Street, City, State, PIN"></textarea>
+          </div>
+
+        </div><!-- /form-grid -->
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" onclick="clearForm()">🗑️ Clear Form</button>
+          <button type="submit" class="btn-primary" id="submitBtn">
+            <span id="submitText">➕ Add Student</span>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Search & Filter -->
+    <section class="card search-card">
+      <div class="search-row">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" type="text" id="searchInput" placeholder="Search by name, roll no, class..." oninput="filterStudents()" />
+        </div>
+        <select class="filter-select" id="filterClass" onchange="filterStudents()">
+          <option value="">All Classes</option>
+          <option>Class 1</option><option>Class 2</option><option>Class 3</option>
+          <option>Class 4</option><option>Class 5</option><option>Class 6</option>
+          <option>Class 7</option><option>Class 8</option><option>Class 9</option>
+          <option>Class 10</option><option>Class 11 (Science)</option>
+          <option>Class 11 (Commerce)</option><option>Class 11 (Arts)</option>
+          <option>Class 12 (Science)</option><option>Class 12 (Commerce)</option>
+          <option>Class 12 (Arts)</option>
+        </select>
+        <select class="filter-select" id="filterGender" onchange="filterStudents()">
+          <option value="">All Genders</option>
+          <option>Male</option><option>Female</option><option>Other</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Student Table -->
+    <section class="card table-card">
+      <div class="table-header-row">
+        <h2 class="card-title">📋 Student Records</h2>
+        <span class="showing-label" id="showingLabel">Showing 0 students</span>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">🎒</div>
+        <h3>No Students Yet</h3>
+        <p>Fill in the form above to add your first student record.</p>
+      </div>
+
+      <!-- Table Wrapper -->
+      <div class="table-wrapper" id="tableWrapper" style="display:none;">
+        <table class="student-table" id="studentTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Roll No</th>
+              <th>Name</th>
+              <th>Class</th>
+              <th>Section</th>
+              <th>Gender</th>
+              <th>DOB</th>
+              <th>Father's Name</th>
+              <th>Phone</th>
+              <th>Blood Group</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-icon">⚠️</div>
+      <h3 class="modal-title">Delete Student?</h3>
+      <p class="modal-desc" id="modalDesc">Are you sure you want to delete this student record? This action cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn-danger" id="confirmDelete">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
