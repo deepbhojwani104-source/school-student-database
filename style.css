@@ -665,6 +665,12 @@ body {
 
 .btn-icon:hover { transform: scale(1.1); }
 
+.btn-icon.edit:hover {
+  background: rgba(108,99,255,0.15);
+  border-color: rgba(108,99,255,0.3);
+  color: var(--primary-light);
+}
+
 .btn-icon.delete:hover {
   background: rgba(255,79,79,0.15);
   border-color: rgba(255,79,79,0.3);

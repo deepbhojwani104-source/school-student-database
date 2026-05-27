@@ -9,6 +9,7 @@
 let students = [];          // All student records
 let filteredStudents = [];  // Currently displayed records
 let deleteTargetId = null;  // ID of record pending deletion
+let editTargetId = null;    // ID of record pending edit (Google Sheet row index)
 
 // ──────────────────────────────────────────────
 // Initialization
@@ -126,8 +127,6 @@ function addStudent(e) {
   const currentUsername = sessionStorage.getItem('edubase_username') || 'anonymous';
 
   const student = {
-    id: Date.now(),
-    sNo: students.length + 1,
     rollNo:      getVal('rollNo'),
     fullName:    getVal('fullName'),
     className:   getVal('className'),
@@ -149,36 +148,106 @@ function addStudent(e) {
   const submitText = document.getElementById('submitText');
   
   submitBtn.disabled = true;
-  submitText.textContent = '⏳ Submitting...';
 
-  // Send to Google Sheets Web App
-  fetch(WEB_APP_URL, {
-    method: 'POST',
-    mode: 'no-cors', // Avoids CORS redirection issues
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(student)
-  })
-  .then(() => {
-    students.push(student);
-    saveToStorage();
-    renderTable(students);
-    updateStats();
-    clearForm();
-    showToast('✅ Saved successfully to Google Sheet!', 'success');
-  })
-  .catch(err => {
-    console.error('Error submitting data:', err);
-    showToast('❌ Submission failed. Check connection.', 'error');
-  })
-  .finally(() => {
-    submitBtn.disabled = false;
-    submitText.textContent = '➕ Add Student';
-  });
+  if (editTargetId !== null) {
+    // ---- Edit Mode ----
+    submitText.textContent = '⏳ Updating...';
+    
+    fetch(WEB_APP_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'update',
+        rowIndex: editTargetId,
+        username: currentUsername,
+        student: student
+      })
+    })
+    .then(() => {
+      // Find local student by id (which is the row index in editTargetId) and update values
+      const idx = students.findIndex(s => s.id === editTargetId);
+      if (idx !== -1) {
+        students[idx] = {
+          ...students[idx],
+          ...student
+        };
+      }
+      saveToStorage();
+      renderTable(students);
+      updateStats();
+      clearForm();
+      showToast('✅ Student record updated successfully!', 'success');
+    })
+    .catch(err => {
+      console.error('Update error:', err);
+      showToast('❌ Update failed. Check connection.', 'error');
+    })
+    .finally(() => {
+      submitBtn.disabled = false;
+    });
+  } else {
+    // ---- Add Mode ----
+    submitText.textContent = '⏳ Submitting...';
+    student.id = Date.now();
+    student.sNo = students.length + 1;
+
+    fetch(WEB_APP_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(student)
+    })
+    .then(() => {
+      students.push(student);
+      saveToStorage();
+      renderTable(students);
+      updateStats();
+      clearForm();
+      showToast('✅ Saved successfully to Google Sheet!', 'success');
+    })
+    .catch(err => {
+      console.error('Error submitting data:', err);
+      showToast('❌ Submission failed. Check connection.', 'error');
+    })
+    .finally(() => {
+      submitBtn.disabled = false;
+    });
+  }
 
   // Scroll to table
   document.querySelector('.table-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Populate form to edit student details
+function editStudent(id) {
+  const s = students.find(item => item.id === id);
+  if (!s) return;
+
+  editTargetId = id;
+
+  // Fill in form values
+  document.getElementById('fullName').value = s.fullName || '';
+  document.getElementById('rollNo').value = s.rollNo || '';
+  document.getElementById('className').value = s.className || '';
+  document.getElementById('section').value = s.section || '';
+  document.getElementById('dob').value = s.dob || '';
+  document.getElementById('gender').value = s.gender || '';
+  document.getElementById('fatherName').value = s.fatherName || '';
+  document.getElementById('motherName').value = s.motherName || '';
+  document.getElementById('phone').value = s.phone || '';
+  document.getElementById('email').value = s.email || '';
+  document.getElementById('address').value = s.address || '';
+  document.getElementById('bloodGroup').value = s.bloodGroup || '';
+  document.getElementById('admDate').value = s.admDate || '';
+
+  // Update UI headers
+  document.querySelector('.form-card .card-title').textContent = '✏️ Edit Student Details';
+  document.querySelector('.form-card .card-desc').textContent = `Editing the record for: ${s.fullName}`;
+  document.getElementById('submitText').textContent = '💾 Update Student';
+
+  // Scroll to form card
+  document.getElementById('form-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ──────────────────────────────────────────────
@@ -298,6 +367,7 @@ function renderTable(list) {
         <td>${s.bloodGroup ? `<span class="blood-badge">${escHtml(s.bloodGroup)}</span>` : '<span style="color:var(--text3)">—</span>'}</td>
         <td>
           <div class="action-btns">
+            <button class="btn-icon edit" title="Edit student" onclick="editStudent(${s.id})">✏️</button>
             <button class="btn-icon delete" title="Delete student" onclick="confirmDelete(${s.id}, '${escHtml(s.fullName).replace(/'/g, "\\'")}')">🗑️</button>
           </div>
         </td>
@@ -450,6 +520,12 @@ function clearForm() {
   clearErrors();
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('admDate').value = today;
+
+  // Reset Edit mode if active
+  editTargetId = null;
+  document.querySelector('.form-card .card-title').textContent = '✏️ Student Registration';
+  document.querySelector('.form-card .card-desc').textContent = 'Fill in the details to add a new student';
+  document.getElementById('submitText').textContent = '➕ Add Student';
 }
 
 // ──────────────────────────────────────────────
