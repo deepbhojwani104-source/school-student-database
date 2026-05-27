@@ -218,7 +218,7 @@ function editStudent(id) {
   document.getElementById('rollNo').value = s.rollNo || '';
   document.getElementById('className').value = s.className || '';
   document.getElementById('section').value = s.section || '';
-  document.getElementById('dob').value = s.dob || '';
+  document.getElementById('dob').value = formatInputDate(s.dob);
   document.getElementById('gender').value = s.gender || '';
   document.getElementById('fatherName').value = s.fatherName || '';
   document.getElementById('motherName').value = s.motherName || '';
@@ -226,7 +226,7 @@ function editStudent(id) {
   document.getElementById('email').value = s.email || '';
   document.getElementById('address').value = s.address || '';
   document.getElementById('bloodGroup').value = s.bloodGroup || '';
-  document.getElementById('admDate').value = s.admDate || '';
+  document.getElementById('admDate').value = formatInputDate(s.admDate);
 
   // Update UI headers
   document.querySelector('.form-card .card-title').textContent = '✏️ Edit Student Details';
@@ -584,6 +584,29 @@ function formatDate(dateStr) {
   const d = new Date(dateStr);
   if (isNaN(d)) return dateStr;
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function formatInputDate(dateVal) {
+  if (!dateVal) return '';
+  // If it's an ISO string (e.g. "2026-05-27T00:00:00.000Z")
+  if (typeof dateVal === 'string' && dateVal.includes('T')) {
+    return dateVal.split('T')[0];
+  }
+  // If it's already YYYY-MM-DD
+  if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+    return dateVal;
+  }
+  // Try parsing
+  try {
+    const d = new Date(dateVal);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  } catch (e) {}
+  return '';
 }
 
 
