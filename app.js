@@ -13,6 +13,8 @@ let deleteTargetId = null;  // ID of record pending deletion
 // ──────────────────────────────────────────────
 // Initialization
 // ──────────────────────────────────────────────
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxNAvhxSV3JtY5Dwpn7qC_T7599WsaeJQ8lQr13l5bKdW0yB0bsn4giI6dcml-ke-8/exec';
+
 document.addEventListener('DOMContentLoaded', () => {
   loadFromStorage();
   renderTable(students);
@@ -21,9 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Set today's date as default admission date
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('admDate').value = today;
-
-  // Initialize Google Identity Services token client
-  setTimeout(initTokenClient, 1000);
 });
 
 // ──────────────────────────────────────────────
@@ -54,13 +53,37 @@ function addStudent(e) {
     addedOn:     new Date().toLocaleDateString('en-IN'),
   };
 
-  students.push(student);
-  saveToStorage();
-  renderTable(students);
-  updateStats();
-  clearForm();
+  const submitBtn = document.getElementById('submitBtn');
+  const submitText = document.getElementById('submitText');
+  
+  submitBtn.disabled = true;
+  submitText.textContent = '⏳ Submitting...';
 
-  showToast('✅ Student added successfully!', 'success');
+  // Send to Google Sheets Web App
+  fetch(WEB_APP_URL, {
+    method: 'POST',
+    mode: 'no-cors', // Avoids CORS redirection issues
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(student)
+  })
+  .then(() => {
+    students.push(student);
+    saveToStorage();
+    renderTable(students);
+    updateStats();
+    clearForm();
+    showToast('✅ Saved successfully to Google Sheet!', 'success');
+  })
+  .catch(err => {
+    console.error('Error submitting data:', err);
+    showToast('❌ Submission failed. Check connection.', 'error');
+  })
+  .finally(() => {
+    submitBtn.disabled = false;
+    submitText.textContent = '➕ Add Student';
+  });
 
   // Scroll to table
   document.querySelector('.table-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -389,248 +412,4 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-// ──────────────────────────────────────────────
-// Google Drive Integration (Direct Excel Sync)
-// ──────────────────────────────────────────────
-const GDRIVE_CLIENT_ID = '25631955555-fkk8i144c7jlva12ohl9kt7eedlspuq8.apps.googleusercontent.com';
-const GDRIVE_SCOPES    = 'https://www.googleapis.com/auth/drive';
-const EXCEL_FILE_ID    = '1dI8m8Gdw-BtlpHCk6yJsLsFjilMlqw13';
 
-let tokenClient = null;
-let accessToken = null;
-let pendingAction = null;
-
-function initTokenClient() {
-  if (typeof google === 'undefined' || !google.accounts) {
-    console.log('Google Identity Services script not ready yet, retrying...');
-    return;
-  }
-  try {
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: GDRIVE_CLIENT_ID,
-      scope: GDRIVE_SCOPES,
-      callback: async (response) => {
-        if (response.error !== undefined) {
-          showToast('❌ Auth error: ' + response.error, 'error');
-          return;
-        }
-        accessToken = response.access_token;
-        
-        // Execute pending action
-        if (pendingAction === 'save') {
-          showToast('📤 Saving records to Google Drive Excel...', 'info');
-          await saveToDrive();
-        } else if (pendingAction === 'load') {
-          showToast('📥 Loading records from Google Drive Excel...', 'info');
-          await loadFromDrive();
-        }
-        pendingAction = null;
-      },
-    });
-    console.log('Google Token Client initialized successfully.');
-  } catch (err) {
-    console.error('Error initializing Google token client:', err);
-  }
-}
-
-function requestAuth(action) {
-  if (!tokenClient) {
-    initTokenClient();
-  }
-  if (!tokenClient) {
-    showToast('⚠️ Google Drive library still loading, please wait.', 'info');
-    return;
-  }
-  pendingAction = action;
-  
-  // If we already have a valid accessToken, just run the action directly
-  if (accessToken) {
-    if (action === 'save') saveToDrive();
-    if (action === 'load') loadFromDrive();
-    pendingAction = null;
-  } else {
-    // Open the Google Sign-In popup
-    tokenClient.requestAccessToken({ prompt: 'consent' });
-  }
-}
-
-function handleDriveSync() {
-  if (students.length === 0) {
-    showToast('⚠️ Nothing to sync! Add some students first.', 'info');
-    return;
-  }
-  requestAuth('save');
-}
-
-function handleDriveLoad() {
-  requestAuth('load');
-}
-
-function parseExcelDate(val) {
-  if (val === undefined || val === null || val === '') return '';
-  
-  // If it's a number (Excel date code)
-  if (typeof val === 'number') {
-    const date = new Date((val - 25569) * 86400 * 1000);
-    if (!isNaN(date.getTime())) {
-      return date.toISOString().split('T')[0];
-    }
-  }
-  
-  const dateStr = String(val).trim();
-  const d = new Date(dateStr);
-  if (!isNaN(d.getTime())) {
-    return d.toISOString().split('T')[0];
-  }
-  
-  return dateStr;
-}
-
-async function saveToDrive() {
-  try {
-    const headers = [
-      'S.No', 'Roll No', 'Full Name', 'Class', 'Section', 'Date of Birth',
-      'Gender', "Father's Name", "Mother's Name", 'Phone', 'Email',
-      'Blood Group', 'Address', 'Admission Date', 'Added On'
-    ];
-
-    const rows = students.map((s, i) => [
-      i + 1,
-      s.rollNo,
-      s.fullName,
-      s.className,
-      s.section,
-      s.dob ? formatDate(s.dob) : '',
-      s.gender,
-      s.fatherName,
-      s.motherName,
-      s.phone,
-      s.email,
-      s.bloodGroup,
-      s.address,
-      s.admDate ? formatDate(s.admDate) : '',
-      s.addedOn,
-    ]);
-
-    // Create workbook
-    const wb = XLSX.utils.book_new();
-    const wsData = [headers, ...rows];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    ws['!cols'] = [
-      {wch:6}, {wch:12}, {wch:22}, {wch:20}, {wch:9}, {wch:14},
-      {wch:10}, {wch:22}, {wch:22}, {wch:14}, {wch:26},
-      {wch:12}, {wch:30}, {wch:16}, {wch:14}
-    ];
-
-    XLSX.utils.book_append_sheet(wb, ws, 'Students');
-
-    // Write to array buffer and create blob
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-    // Patch the specific excel file media content
-    const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${EXCEL_FILE_ID}?uploadType=media`;
-    const res = await fetch(updateUrl, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      },
-      body: blob
-    });
-
-    if (res.ok) {
-      showToast('✅ Excel file updated on Google Drive!', 'success');
-    } else {
-      const errText = await res.text();
-      console.error('Drive save error status:', res.status, errText);
-      try {
-        const errJson = JSON.parse(errText);
-        showToast(`❌ Save error (${res.status}): ${errJson.error.message}`, 'error');
-      } catch(e) {
-        showToast(`❌ Save error (${res.status}): ${errText.slice(0, 100)}`, 'error');
-      }
-    }
-  } catch (err) {
-    console.error('saveToDrive error:', err);
-    showToast('❌ Failed to save Excel file to Google Drive. Check internet or console.', 'error');
-  }
-}
-
-async function loadFromDrive() {
-  try {
-    const downloadUrl = `https://www.googleapis.com/drive/v3/files/${EXCEL_FILE_ID}?alt=media`;
-    const res = await fetch(downloadUrl, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-
-    if (res.ok) {
-      const arrayBuffer = await res.arrayBuffer();
-      const data = new Uint8Array(arrayBuffer);
-      const workbook = XLSX.read(data, { type: 'array' });
-
-      if (workbook.SheetNames.length === 0) {
-        showToast('⚠️ No sheets found in the Excel file.', 'error');
-        return;
-      }
-
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-      if (rows.length <= 1) {
-        showToast('📂 Excel file is empty or only contains headers.', 'info');
-        students = [];
-        saveToStorage();
-        renderTable(students);
-        updateStats();
-        return;
-      }
-
-      const loadedStudents = [];
-      for (let i = 1; i < rows.length; i++) {
-        const r = rows[i];
-        if (!r || r.length === 0) continue;
-        if (!r[2] && !r[1]) continue; // Needs at least Name or Roll number
-
-        loadedStudents.push({
-          id: Date.now() + i,
-          sNo: i,
-          rollNo: String(r[1] !== undefined ? r[1] : ''),
-          fullName: String(r[2] !== undefined ? r[2] : ''),
-          className: String(r[3] !== undefined ? r[3] : ''),
-          section: String(r[4] !== undefined ? r[4] : ''),
-          dob: parseExcelDate(r[5]),
-          gender: String(r[6] !== undefined ? r[6] : ''),
-          fatherName: String(r[7] !== undefined ? r[7] : ''),
-          motherName: String(r[8] !== undefined ? r[8] : ''),
-          phone: String(r[9] !== undefined ? r[9] : ''),
-          email: String(r[10] !== undefined ? r[10] : ''),
-          bloodGroup: String(r[11] !== undefined ? r[11] : ''),
-          address: String(r[12] !== undefined ? r[12] : ''),
-          admDate: parseExcelDate(r[13]),
-          addedOn: String(r[14] !== undefined ? r[14] : new Date().toLocaleDateString('en-IN')),
-        });
-      }
-
-      students = loadedStudents;
-      saveToStorage();
-      renderTable(students);
-      updateStats();
-      showToast(`✅ Loaded ${students.length} students from Google Drive!`, 'success');
-    } else {
-      const errText = await res.text();
-      console.error('Drive load error status:', res.status, errText);
-      try {
-        const errJson = JSON.parse(errText);
-        showToast(`❌ Load error (${res.status}): ${errJson.error.message}`, 'error');
-      } catch(e) {
-        showToast(`❌ Load error (${res.status}): ${errText.slice(0, 100)}`, 'error');
-      }
-    }
-  } catch (err) {
-    console.error('loadFromDrive error:', err);
-    showToast('❌ Failed to load Excel data from Google Drive. Check internet or console.', 'error');
-  }
-}
