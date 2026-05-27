@@ -191,6 +191,7 @@ function addStudent(e) {
       clearForm();
       showToast('✅ Saved successfully to Google Sheet!', 'success');
       loadUserStudents(); // Refresh to sync correct row indices
+      triggerWhatsAppNotification(student);
     })
     .catch(err => {
       console.error('Error submitting data:', err);
@@ -645,8 +646,22 @@ function formatInputDate(dateVal) {
       return `${year}-${month}-${day}`;
     }
   } catch (e) {}
-
   return '';
 }
 
-
+function triggerWhatsAppNotification(student) {
+  const message = `Dear Parent,\n\nWe are pleased to inform you that your child *${student.fullName}* has been successfully registered.\n\n` +
+                  `*Registration Details:*\n` +
+                  `• Roll No: ${student.rollNo}\n` +
+                  `• Class: ${student.className}${student.section ? ` - ${student.section}` : ''}\n` +
+                  `• Admission Date: ${student.admDate ? formatDate(student.admDate) : '—'}\n\n` +
+                  `Thank you!\nSchool Administration`;
+  
+  const encodedText = encodeURIComponent(message);
+  const waUrl = `https://wa.me/91${student.phone}?text=${encodedText}`;
+  
+  const newWindow = window.open(waUrl, '_blank');
+  if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+    showToast('⚠️ Pop-up blocked! Allow pop-ups or click the phone number in the table to send the message.', 'info');
+  }
+}
