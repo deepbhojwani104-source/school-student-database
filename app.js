@@ -175,6 +175,7 @@ function addStudent(e) {
     })
     .finally(() => {
       submitBtn.disabled = false;
+      submitText.textContent = (editTargetId !== null) ? '💾 Update Student' : '➕ Add Student';
     });
   } else {
     // ---- Add Mode ----
@@ -197,6 +198,7 @@ function addStudent(e) {
     })
     .finally(() => {
       submitBtn.disabled = false;
+      submitText.textContent = '➕ Add Student';
     });
   }
 
@@ -250,7 +252,7 @@ function validateForm() {
   if (!rollNo) {
     setError('rollNo', 'Roll number is required');
     valid = false;
-  } else if (students.some(s => s.rollNo.toLowerCase() === rollNo.toLowerCase())) {
+  } else if (students.some(s => s.rollNo.toLowerCase() === rollNo.toLowerCase() && s.id !== editTargetId)) {
     setError('rollNo', 'This roll number already exists');
     valid = false;
   }
