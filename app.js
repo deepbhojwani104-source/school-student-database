@@ -588,17 +588,52 @@ function formatDate(dateStr) {
 
 function formatInputDate(dateVal) {
   if (!dateVal) return '';
-  // If it's an ISO string (e.g. "2026-05-27T00:00:00.000Z")
-  if (typeof dateVal === 'string' && dateVal.includes('T')) {
-    return dateVal.split('T')[0];
+  
+  // Convert to string and trim
+  const str = String(dateVal).trim();
+  if (!str) return '';
+
+  // 1. If it's an ISO string (e.g. "2026-05-27T00:00:00.000Z")
+  if (str.includes('T')) {
+    const part = str.split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(part)) return part;
   }
-  // If it's already YYYY-MM-DD
-  if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
-    return dateVal;
+
+  // 2. Match DD/MM/YYYY or DD-MM-YYYY (e.g., "27/05/2026", "27-5-2026")
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (dmyMatch) {
+    const day = dmyMatch[1].padStart(2, '0');
+    const month = dmyMatch[2].padStart(2, '0');
+    const year = dmyMatch[3];
+    return `${year}-${month}-${day}`;
   }
-  // Try parsing
+
+  // 3. Match YYYY/MM/DD or YYYY-MM-DD (e.g., "2026/05/27", "2026-5-27")
+  const ymdMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (ymdMatch) {
+    const year = ymdMatch[1];
+    const month = ymdMatch[2].padStart(2, '0');
+    const day = ymdMatch[3].padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // 4. Match DD-MMM-YYYY or DD MMM YYYY (e.g., "27-May-2026", "27 May 2026")
+  const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  const verbalMatch = str.match(/^(\d{1,2})[\s\-]([a-zA-Z]{3,10})[\s\-](\d{4})$/);
+  if (verbalMatch) {
+    const day = verbalMatch[1].padStart(2, '0');
+    const mName = verbalMatch[2].toLowerCase().slice(0, 3);
+    const year = verbalMatch[3];
+    const mIdx = monthNames.indexOf(mName);
+    if (mIdx !== -1) {
+      const month = String(mIdx + 1).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  }
+
+  // 5. Fallback standard Date parsing
   try {
-    const d = new Date(dateVal);
+    const d = new Date(str);
     if (!isNaN(d.getTime())) {
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -606,6 +641,7 @@ function formatInputDate(dateVal) {
       return `${year}-${month}-${day}`;
     }
   } catch (e) {}
+
   return '';
 }
 
