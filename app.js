@@ -252,7 +252,7 @@ function validateForm() {
   if (!rollNo) {
     setError('rollNo', 'Roll number is required');
     valid = false;
-  } else if (students.some(s => s.rollNo.toLowerCase() === rollNo.toLowerCase() && s.id !== editTargetId)) {
+  } else if (students.some(s => String(s.rollNo).toLowerCase() === rollNo.toLowerCase() && s.id !== editTargetId)) {
     setError('rollNo', 'This roll number already exists');
     valid = false;
   }
@@ -383,11 +383,11 @@ function filterStudents() {
   const filtered = students.filter(s => {
     const matchSearch =
       !query ||
-      s.fullName.toLowerCase().includes(query) ||
-      s.rollNo.toLowerCase().includes(query) ||
-      s.className.toLowerCase().includes(query) ||
-      s.fatherName.toLowerCase().includes(query) ||
-      s.phone.includes(query);
+      String(s.fullName || '').toLowerCase().includes(query) ||
+      String(s.rollNo || '').toLowerCase().includes(query) ||
+      String(s.className || '').toLowerCase().includes(query) ||
+      String(s.fatherName || '').toLowerCase().includes(query) ||
+      String(s.phone || '').includes(query);
 
     const matchClass  = !classFilter || s.className === classFilter;
     const matchGender = !genFilter   || s.gender === genFilter;
