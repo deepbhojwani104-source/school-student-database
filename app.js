@@ -16,6 +16,11 @@ let deleteTargetId = null;  // ID of record pending deletion
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxNAvhxSV3JtY5Dwpn7qC_T7599WsaeJQ8lQr13l5bKdW0yB0bsn4giI6dcml-ke-8/exec';
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Check auth state
+  if (sessionStorage.getItem('edubase_auth') === 'true') {
+    document.getElementById('loginOverlay').classList.add('hidden');
+  }
+
   loadFromStorage();
   renderTable(students);
   updateStats();
@@ -24,6 +29,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('admDate').value = today;
 });
+
+// ──────────────────────────────────────────────
+// Authentication Logic
+// ──────────────────────────────────────────────
+function handleLogin(e) {
+  e.preventDefault();
+  const u = getVal('login-username');
+  const p = getVal('login-password');
+
+  if (u === 'admin' && p === 'admin123') {
+    sessionStorage.setItem('edubase_auth', 'true');
+    document.getElementById('loginOverlay').classList.add('hidden');
+    showToast('🔓 Login successful!', 'success');
+  } else {
+    showToast('❌ Invalid username or password!', 'error');
+  }
+}
 
 // ──────────────────────────────────────────────
 // Form Submission — Add Student

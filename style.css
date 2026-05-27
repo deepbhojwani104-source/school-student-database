@@ -778,3 +778,62 @@ body {
   .filter-select { width: 100%; }
   .toast { left: 16px; right: 16px; bottom: 20px; }
 }
+
+/* ---- Login Screen Overlay ---- */
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  background: #0d0f1a;
+  display: grid;
+  place-items: center;
+  z-index: 99999;
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s;
+  padding: 24px;
+}
+
+.login-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.login-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  padding: 40px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  text-align: center;
+  transform: translateY(0);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.login-logo {
+  margin-bottom: 32px;
+}
+
+.login-logo-icon {
+  font-size: 3rem;
+  display: inline-block;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 0 16px rgba(108,99,255,0.5));
+}
+
+.login-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #6c63ff, #00d4aa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.login-subtitle {
+  font-size: 0.85rem;
+  color: var(--text2);
+  margin-top: 6px;
+}
