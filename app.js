@@ -19,11 +19,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check auth state
   if (sessionStorage.getItem('edubase_auth') === 'true') {
     document.getElementById('loginOverlay').classList.add('hidden');
+    loadUserStudents();
+  } else {
+    // If not logged in, clear local table view
+    students = [];
+    renderTable([]);
+    updateStats();
   }
-
-  loadFromStorage();
-  renderTable(students);
-  updateStats();
 
   // Set today's date as default admission date
   const today = new Date().toISOString().split('T')[0];
@@ -55,11 +57,42 @@ function handleLogin(e) {
 
   if (userFound) {
     sessionStorage.setItem('edubase_auth', 'true');
+    sessionStorage.setItem('edubase_username', usernameInput);
     document.getElementById('loginOverlay').classList.add('hidden');
     showToast(`🔓 Welcome, ${usernameInput}!`, 'success');
+    loadUserStudents();
   } else {
     showToast('❌ Invalid username or password!', 'error');
   }
+}
+
+// Load only records matching logged-in user
+function loadUserStudents() {
+  const username = sessionStorage.getItem('edubase_username');
+  if (!username) return;
+
+  showToast('📥 Fetching your records...', 'info');
+
+  fetch(`${WEB_APP_URL}?username=${encodeURIComponent(username)}`)
+    .then(res => {
+      if (!res.ok) throw new Error('Network error');
+      return res.json();
+    })
+    .then(data => {
+      if (Array.isArray(data)) {
+        students = data;
+        saveToStorage();
+        renderTable(students);
+        updateStats();
+      }
+    })
+    .catch(err => {
+      console.error('Error fetching user data:', err);
+      // Fallback to local storage if offline
+      loadFromStorage();
+      renderTable(students);
+      updateStats();
+    });
 }
 
 // ──────────────────────────────────────────────
@@ -70,6 +103,8 @@ function addStudent(e) {
   clearErrors();
 
   if (!validateForm()) return;
+
+  const currentUsername = sessionStorage.getItem('edubase_username') || 'anonymous';
 
   const student = {
     id: Date.now(),
@@ -88,6 +123,7 @@ function addStudent(e) {
     bloodGroup:  getVal('bloodGroup'),
     admDate:     getVal('admDate'),
     addedOn:     new Date().toLocaleDateString('en-IN'),
+    addedBy:     currentUsername
   };
 
   const submitBtn = document.getElementById('submitBtn');
