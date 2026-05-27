@@ -543,15 +543,18 @@ async function saveToDrive() {
     if (res.ok) {
       showToast('✅ Excel file updated on Google Drive!', 'success');
     } else {
-      if (res.status === 404) {
-        showToast('❌ Target Excel file not found on Google Drive.', 'error');
-      } else {
-        throw new Error('Upload failed');
+      const errText = await res.text();
+      console.error('Drive save error status:', res.status, errText);
+      try {
+        const errJson = JSON.parse(errText);
+        showToast(`❌ Save error (${res.status}): ${errJson.error.message}`, 'error');
+      } catch(e) {
+        showToast(`❌ Save error (${res.status}): ${errText.slice(0, 100)}`, 'error');
       }
     }
   } catch (err) {
     console.error('saveToDrive error:', err);
-    showToast('❌ Failed to save Excel file to Google Drive.', 'error');
+    showToast('❌ Failed to save Excel file to Google Drive. Check internet or console.', 'error');
   }
 }
 
@@ -617,14 +620,17 @@ async function loadFromDrive() {
       updateStats();
       showToast(`✅ Loaded ${students.length} students from Google Drive!`, 'success');
     } else {
-      if (res.status === 404) {
-        showToast('❌ Target Excel file not found on Google Drive.', 'error');
-      } else {
-        throw new Error('Download failed');
+      const errText = await res.text();
+      console.error('Drive load error status:', res.status, errText);
+      try {
+        const errJson = JSON.parse(errText);
+        showToast(`❌ Load error (${res.status}): ${errJson.error.message}`, 'error');
+      } catch(e) {
+        showToast(`❌ Load error (${res.status}): ${errText.slice(0, 100)}`, 'error');
       }
     }
   } catch (err) {
     console.error('loadFromDrive error:', err);
-    showToast('❌ Failed to load Excel data from Google Drive.', 'error');
+    showToast('❌ Failed to load Excel data from Google Drive. Check internet or console.', 'error');
   }
 }
