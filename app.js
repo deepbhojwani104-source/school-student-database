@@ -165,19 +165,9 @@ function addStudent(e) {
       })
     })
     .then(() => {
-      // Find local student by id (which is the row index in editTargetId) and update values
-      const idx = students.findIndex(s => s.id === editTargetId);
-      if (idx !== -1) {
-        students[idx] = {
-          ...students[idx],
-          ...student
-        };
-      }
-      saveToStorage();
-      renderTable(students);
-      updateStats();
       clearForm();
       showToast('✅ Student record updated successfully!', 'success');
+      loadUserStudents(); // Refresh to sync correct row indices
     })
     .catch(err => {
       console.error('Update error:', err);
@@ -189,8 +179,6 @@ function addStudent(e) {
   } else {
     // ---- Add Mode ----
     submitText.textContent = '⏳ Submitting...';
-    student.id = Date.now();
-    student.sNo = students.length + 1;
 
     fetch(WEB_APP_URL, {
       method: 'POST',
@@ -199,12 +187,9 @@ function addStudent(e) {
       body: JSON.stringify(student)
     })
     .then(() => {
-      students.push(student);
-      saveToStorage();
-      renderTable(students);
-      updateStats();
       clearForm();
       showToast('✅ Saved successfully to Google Sheet!', 'success');
+      loadUserStudents(); // Refresh to sync correct row indices
     })
     .catch(err => {
       console.error('Error submitting data:', err);
@@ -438,13 +423,10 @@ function confirmDelete(id, name) {
       })
     })
     .then(() => {
-      students = students.filter(s => s.id !== deleteTargetId);
-      saveToStorage();
-      renderTable(students);
-      updateStats();
       closeModal();
       showToast('🗑️ Student record deleted successfully!', 'success');
       deleteTargetId = null;
+      loadUserStudents(); // Refresh to sync correct row indices
     })
     .catch(err => {
       console.error('Delete error:', err);
