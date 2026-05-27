@@ -13,7 +13,7 @@ let deleteTargetId = null;  // ID of record pending deletion
 // ──────────────────────────────────────────────
 // Initialization
 // ──────────────────────────────────────────────
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxNAvhxSV3JtY5Dwpn7qC_T7599WsaeJQ8lQr13l5bKdW0yB0bsn4giI6dcml-ke-8/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwwdpR2_W3r2ZlqUE9gugDUHRnNPMreXJU48S7K95Bpg8rIyZIMqUQRHj546EX2lwUf/exec';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Check auth state
