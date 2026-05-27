@@ -390,10 +390,11 @@ function formatDate(dateStr) {
 }
 
 // ──────────────────────────────────────────────
-// Google Drive Integration
+// Google Drive Integration (Direct Excel Sync)
 // ──────────────────────────────────────────────
 const GDRIVE_CLIENT_ID = '25631955555-fkk8i144c7jlva12ohl9kt7eedlspuq8.apps.googleusercontent.com';
-const GDRIVE_SCOPES    = 'https://www.googleapis.com/auth/drive.file';
+const GDRIVE_SCOPES    = 'https://www.googleapis.com/auth/drive';
+const EXCEL_FILE_ID    = '1dI8m8Gdw-BtlpHCk6yJsLsFjilMlqw13';
 
 let tokenClient = null;
 let accessToken = null;
@@ -417,10 +418,10 @@ function initTokenClient() {
         
         // Execute pending action
         if (pendingAction === 'save') {
-          showToast('📤 Syncing records to Google Drive...', 'info');
+          showToast('📤 Saving records to Google Drive Excel...', 'info');
           await saveToDrive();
         } else if (pendingAction === 'load') {
-          showToast('📥 Loading records from Google Drive...', 'info');
+          showToast('📥 Loading records from Google Drive Excel...', 'info');
           await loadFromDrive();
         }
         pendingAction = null;
@@ -465,112 +466,165 @@ function handleDriveLoad() {
   requestAuth('load');
 }
 
-async function findDriveFile() {
-  const searchUrl = "https://www.googleapis.com/drive/v3/files?q=name='EduBase_Students.json' and trashed=false";
-  try {
-    const res = await fetch(searchUrl, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-    if (!res.ok) throw new Error('Search failed');
-    const data = await res.json();
-    return data.files && data.files.length > 0 ? data.files[0].id : null;
-  } catch (err) {
-    console.error('findDriveFile error:', err);
-    return null;
+function parseExcelDate(val) {
+  if (val === undefined || val === null || val === '') return '';
+  
+  // If it's a number (Excel date code)
+  if (typeof val === 'number') {
+    const date = new Date((val - 25569) * 86400 * 1000);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
   }
+  
+  const dateStr = String(val).trim();
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().split('T')[0];
+  }
+  
+  return dateStr;
 }
 
 async function saveToDrive() {
   try {
-    const fileId = await findDriveFile();
-    const fileContent = JSON.stringify(students, null, 2);
+    const headers = [
+      'S.No', 'Roll No', 'Full Name', 'Class', 'Section', 'Date of Birth',
+      'Gender', "Father's Name", "Mother's Name", 'Phone', 'Email',
+      'Blood Group', 'Address', 'Admission Date', 'Added On'
+    ];
 
-    if (fileId) {
-      // Update existing file
-      const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`;
-      const res = await fetch(updateUrl, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: fileContent
-      });
-      if (res.ok) {
-        showToast('✅ Synced successfully with Google Drive!', 'success');
-      } else {
-        throw new Error('Update failed');
-      }
+    const rows = students.map((s, i) => [
+      i + 1,
+      s.rollNo,
+      s.fullName,
+      s.className,
+      s.section,
+      s.dob ? formatDate(s.dob) : '',
+      s.gender,
+      s.fatherName,
+      s.motherName,
+      s.phone,
+      s.email,
+      s.bloodGroup,
+      s.address,
+      s.admDate ? formatDate(s.admDate) : '',
+      s.addedOn,
+    ]);
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    const wsData = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    ws['!cols'] = [
+      {wch:6}, {wch:12}, {wch:22}, {wch:20}, {wch:9}, {wch:14},
+      {wch:10}, {wch:22}, {wch:22}, {wch:14}, {wch:26},
+      {wch:12}, {wch:30}, {wch:16}, {wch:14}
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Students');
+
+    // Write to array buffer and create blob
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    // Patch the specific excel file media content
+    const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${EXCEL_FILE_ID}?uploadType=media`;
+    const res = await fetch(updateUrl, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      },
+      body: blob
+    });
+
+    if (res.ok) {
+      showToast('✅ Excel file updated on Google Drive!', 'success');
     } else {
-      // Create new file using multipart/related
-      const metadata = {
-        name: 'EduBase_Students.json',
-        mimeType: 'application/json'
-      };
-      
-      const boundary = 'edubase_multipart_boundary';
-      const delimiter = `\r\n--${boundary}\r\n`;
-      const close_delim = `\r\n--${boundary}--`;
-      
-      const multipartBody = 
-        delimiter +
-        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-        JSON.stringify(metadata) +
-        delimiter +
-        'Content-Type: application/json\r\n\r\n' +
-        fileContent +
-        close_delim;
-
-      const createUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-      const res = await fetch(createUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': `multipart/related; boundary=${boundary}`
-        },
-        body: multipartBody
-      });
-      if (res.ok) {
-        showToast('✅ Saved to Google Drive root folder!', 'success');
+      if (res.status === 404) {
+        showToast('❌ Target Excel file not found on Google Drive.', 'error');
       } else {
-        throw new Error('Creation failed');
+        throw new Error('Upload failed');
       }
     }
   } catch (err) {
     console.error('saveToDrive error:', err);
-    showToast('❌ Failed to sync to Google Drive.', 'error');
+    showToast('❌ Failed to save Excel file to Google Drive.', 'error');
   }
 }
 
 async function loadFromDrive() {
   try {
-    const fileId = await findDriveFile();
-    if (!fileId) {
-      showToast('📂 "EduBase_Students.json" not found on your Google Drive!', 'info');
-      return;
-    }
-
-    const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+    const downloadUrl = `https://www.googleapis.com/drive/v3/files/${EXCEL_FILE_ID}?alt=media`;
     const res = await fetch(downloadUrl, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
     });
 
     if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        students = data;
+      const arrayBuffer = await res.arrayBuffer();
+      const data = new Uint8Array(arrayBuffer);
+      const workbook = XLSX.read(data, { type: 'array' });
+
+      if (workbook.SheetNames.length === 0) {
+        showToast('⚠️ No sheets found in the Excel file.', 'error');
+        return;
+      }
+
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+      if (rows.length <= 1) {
+        showToast('📂 Excel file is empty or only contains headers.', 'info');
+        students = [];
         saveToStorage();
         renderTable(students);
         updateStats();
-        showToast(`✅ Loaded ${students.length} students from Google Drive!`, 'success');
-      } else {
-        showToast('⚠️ Google Drive file format invalid.', 'error');
+        return;
       }
+
+      const loadedStudents = [];
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || r.length === 0) continue;
+        if (!r[2] && !r[1]) continue; // Needs at least Name or Roll number
+
+        loadedStudents.push({
+          id: Date.now() + i,
+          sNo: i,
+          rollNo: String(r[1] !== undefined ? r[1] : ''),
+          fullName: String(r[2] !== undefined ? r[2] : ''),
+          className: String(r[3] !== undefined ? r[3] : ''),
+          section: String(r[4] !== undefined ? r[4] : ''),
+          dob: parseExcelDate(r[5]),
+          gender: String(r[6] !== undefined ? r[6] : ''),
+          fatherName: String(r[7] !== undefined ? r[7] : ''),
+          motherName: String(r[8] !== undefined ? r[8] : ''),
+          phone: String(r[9] !== undefined ? r[9] : ''),
+          email: String(r[10] !== undefined ? r[10] : ''),
+          bloodGroup: String(r[11] !== undefined ? r[11] : ''),
+          address: String(r[12] !== undefined ? r[12] : ''),
+          admDate: parseExcelDate(r[13]),
+          addedOn: String(r[14] !== undefined ? r[14] : new Date().toLocaleDateString('en-IN')),
+        });
+      }
+
+      students = loadedStudents;
+      saveToStorage();
+      renderTable(students);
+      updateStats();
+      showToast(`✅ Loaded ${students.length} students from Google Drive!`, 'success');
     } else {
-      throw new Error('Download failed');
+      if (res.status === 404) {
+        showToast('❌ Target Excel file not found on Google Drive.', 'error');
+      } else {
+        throw new Error('Download failed');
+      }
     }
   } catch (err) {
     console.error('loadFromDrive error:', err);
-    showToast('❌ Failed to load from Google Drive.', 'error');
+    showToast('❌ Failed to load Excel data from Google Drive.', 'error');
   }
 }
