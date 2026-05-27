@@ -66,6 +66,25 @@ function handleLogin(e) {
   }
 }
 
+function handleLogout() {
+  sessionStorage.removeItem('edubase_auth');
+  sessionStorage.removeItem('edubase_username');
+  
+  // Clear database data
+  students = [];
+  saveToStorage();
+  renderTable([]);
+  updateStats();
+
+  // Reset input fields
+  document.getElementById('login-username').value = '';
+  document.getElementById('login-password').value = '';
+
+  // Show overlay
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  showToast('🚪 Logged out successfully!', 'success');
+}
+
 // Load only records matching logged-in user
 function loadUserStudents() {
   const username = sessionStorage.getItem('edubase_username');
@@ -328,17 +347,39 @@ function filterStudents() {
 function confirmDelete(id, name) {
   deleteTargetId = id;
   document.getElementById('modalDesc').textContent =
-    `Are you sure you want to delete the record of "${name}"? This action cannot be undone.`;
+    `Are you sure you want to delete the record of "${name}"? This will remove it from your Google Sheet.`;
   document.getElementById('modalOverlay').classList.add('open');
 
   document.getElementById('confirmDelete').onclick = () => {
-    students = students.filter(s => s.id !== deleteTargetId);
-    saveToStorage();
-    renderTable(students);
-    updateStats();
-    closeModal();
-    showToast('🗑️ Student record deleted', 'error');
-    deleteTargetId = null;
+    const currentUsername = sessionStorage.getItem('edubase_username') || 'anonymous';
+    showToast('🗑️ Deleting from Google Sheet...', 'info');
+
+    // Send POST delete request to Apps Script Web App
+    fetch(WEB_APP_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'delete',
+        rowIndex: deleteTargetId,
+        username: currentUsername
+      })
+    })
+    .then(() => {
+      students = students.filter(s => s.id !== deleteTargetId);
+      saveToStorage();
+      renderTable(students);
+      updateStats();
+      closeModal();
+      showToast('🗑️ Student record deleted successfully!', 'success');
+      deleteTargetId = null;
+    })
+    .catch(err => {
+      console.error('Delete error:', err);
+      showToast('❌ Failed to delete record.', 'error');
+    });
   };
 }
 
