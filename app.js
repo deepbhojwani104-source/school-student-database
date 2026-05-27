@@ -33,15 +33,30 @@ document.addEventListener('DOMContentLoaded', () => {
 // ──────────────────────────────────────────────
 // Authentication Logic
 // ──────────────────────────────────────────────
+const ALLOWED_USERS = [
+  { u: 'admin', p: 'admin123' },
+  { u: 'teacher1', p: 'teach789' },
+  { u: 'teacher2', p: 'teach456' },
+  { u: 'principal', p: 'leadSchool' },
+  { u: 'staff1', p: 'staff001' },
+  { u: 'staff2', p: 'staff002' },
+  { u: 'coordinator', p: 'coord2026' },
+  { u: 'clerk', p: 'clerkDb' },
+  { u: 'registrar', p: 'regEduBase' },
+  { u: 'moderator', p: 'modSchool' }
+];
+
 function handleLogin(e) {
   e.preventDefault();
-  const u = getVal('login-username');
-  const p = getVal('login-password');
+  const usernameInput = getVal('login-username').trim();
+  const passwordInput = getVal('login-password').trim();
 
-  if (u === 'admin' && p === 'admin123') {
+  const userFound = ALLOWED_USERS.find(user => user.u === usernameInput && user.p === passwordInput);
+
+  if (userFound) {
     sessionStorage.setItem('edubase_auth', 'true');
     document.getElementById('loginOverlay').classList.add('hidden');
-    showToast('🔓 Login successful!', 'success');
+    showToast(`🔓 Welcome, ${usernameInput}!`, 'success');
   } else {
     showToast('❌ Invalid username or password!', 'error');
   }
