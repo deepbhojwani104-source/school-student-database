@@ -677,6 +677,28 @@ body {
   color: var(--danger);
 }
 
+/* WhatsApp Badge Link */
+.whatsapp-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(37, 211, 102, 0.1);
+  color: #25d366;
+  border-radius: 50px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid rgba(37, 211, 102, 0.2);
+  transition: var(--transition);
+}
+
+.whatsapp-link:hover {
+  background: rgba(37, 211, 102, 0.2);
+  border-color: rgba(37, 211, 102, 0.4);
+  transform: translateY(-1px);
+}
+
 /* ---- Toast ---- */
 .toast {
   position: fixed;

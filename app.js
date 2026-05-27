@@ -350,7 +350,11 @@ function renderTable(list) {
         <td><span class="gender-badge gender-${gClass}">${escHtml(s.gender)}</span></td>
         <td>${s.dob ? formatDate(s.dob) : '—'}</td>
         <td>${escHtml(s.fatherName)}</td>
-        <td>📞 ${escHtml(s.phone)}</td>
+        <td>
+          <a href="https://wa.me/91${escHtml(s.phone)}" target="_blank" class="whatsapp-link" title="Open WhatsApp Chat">
+            💬 ${escHtml(s.phone)}
+          </a>
+        </td>
         <td>${s.bloodGroup ? `<span class="blood-badge">${escHtml(s.bloodGroup)}</span>` : '<span style="color:var(--text3)">—</span>'}</td>
         <td>
           <div class="action-btns">
